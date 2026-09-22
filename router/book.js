@@ -5,25 +5,49 @@ const router = express.Router();
 const idLength = 8;
 
 router.get('/', async (req, res) => {
-  const books = await req.app.db.get('books');
-  res.send(books);
+  try {
+    const books = await req.app.db.get('books');
+    res.status(200).send(books);
+  } catch (error) {
+    res.status(500).send(error)
+  }
 })
 
 router.get('/:id', async (req, res) => {
-  const book = await req.app.db.get('books').find({ id: req.params.id }).value();
-  if (!book) {
-    return res.sendStatus(404).send({ error: 'Book not found' });
+  try {
+    const book = await req.app.db.get('books').find({ id: req.params.id }).value();
+    res.status(200).send(book);
+  } catch (error) {
+    res.status(500).send(error);
   }
-  res.send(book);
 });
 
 router.post('/', async (req, res) => {
-  const { title, author, year } = req.body;
-  if (!title || !author || !year) {
-    return res.status(400).send({ error: "Missing requred fields: title, author, year" });
-  }
-  const id = nanoid(idLength);
-  const newBook = { id, title, author, year };
-  await req.app.db.get('books').post(newBook);
-  res.status(201).send(newBook);;
+  try {
+    const idBook = nanoid(idLength);
+    const newBook = { id: idBook, ...req.body };
+    await req.app.db.get('books').push(newBook).write();
+    res.status(201).send(newBook);
+  } catch (error) {
+    res.status(500).send(error);   
+}
 });
+
+router.put('/:id', async(req, res)=>{
+  try {
+    await req.app.db.get('books').find({ id: req.params.id }).assign(req.body).write();
+    const updatedBook = await req.app.db.get('books').find({id: req.params.id}).value();
+    res.status(200).send(updatedBook);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+})
+
+router.delete('/:id', async (req, res) => {
+  try{
+    await req.app.db.get('books').remove({ id: req.params.id }).write()
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).send(error);
+  }
+})
