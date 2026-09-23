@@ -1,6 +1,7 @@
 import express from "express";
 import { nanoid } from "nanoid";
 import { Book } from "../models/books.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 const idLength = 8;
@@ -32,7 +33,18 @@ const idLength = 8;
  *         id: '1bvFd57R'
  *         title: 'The new training Book'
  *         author: 'John Dou'
- *  
+ *
+ *     # Schema for error response body
+ *     Error:
+ *      type: object
+ *      properties:
+ *        code:
+ *          type: string
+ *        message:
+ *          type: string
+ *      required:
+ *        - code
+ *        - message
  */
 
 /**
@@ -57,6 +69,8 @@ const idLength = 8;
  *               type: array
  *               items: 
  *                 $ref: '#/components/schemas/Book'
+ *       500:
+ *          description: Unexpected error
  * 
  */
 
@@ -70,12 +84,54 @@ router.get('/', async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /books/{id}:
+ *   get:
+ *     summury: Get Book by id
+ *     tags: [Books]  
+ *     parameters:
+ *       - in: path
+ *         name: id 
+ *         schema: 
+ *           type: string
+ *         required: true
+ *         description: The book's id
+ *     responses:
+ *       200:
+ *         description: A single book
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               $ref: '#/components/schemas/Book'
+ *       404:
+ *         description: The books was not found
+ *         content: 
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error' 
+ */
 router.get('/:id', async (req, res) => {
   try {
-    const book = await req.app.db.get('books').find({ id: req.params.id }).value();
-    res.status(200).send(book);
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        code: 'INVALID_ID',
+        message: 'Invalid book id',
+      })
+    }
+
+    const book = await Book.findById(id);
+    if (!book) {
+      return res.status(404).json({
+        code: 'NOT_FOUND',
+        message: "The book wasn't found",
+      })
+    }
+    return res.status(200).json(book)
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).send(error)
   }
 });
 
